@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers.
+#define WIN32_LEAN_AND_MEAN    // Exclude rarely-used stuff from Windows headers.
 #endif
 
 #include <windows.h>
@@ -9,38 +9,45 @@
 #include <dxgi1_4.h>
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
-#include <D3d12SDKLayers.h>
 #include "d3dx12.h"
+#include <string>
 
-template <typename ResourceObjPtr>
-inline void SAFE_RELEASE(ResourceObjPtr p) {
-	if (p) {
-		p->Release();
-		p = nullptr;
-	}
-}
+// this will only call release if an object exists (prevents exceptions calling release on non existant objects)
+#define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = 0; } }
+
+// Handle to the window
+HWND hwnd = NULL;
+
+// name of the window (not the title)
+LPCTSTR WindowName = L"BzTutsApp";
+
+// title of the window
+LPCTSTR WindowTitle = L"Bz Window";
+
+// width and height of the window
+int Width = 800;
+int Height = 600;
+
+// is window full screen?
+bool FullScreen = false;
 
 // we will exit the program when this becomes false
-bool running = true;
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
-// window stuff
-HWND hwnd = nullptr;
-LPCTSTR windowName = L"SHAWNMEIAPP";
-LPCTSTR windowTitle = L"Mei Window";
-int width = 800;
-int height = 600;
-bool fullScreen = false;
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool Running = true;
 
 // create a window
-bool InitializeWindow(HINSTANCE hInstance, int showWind, int width, int height, bool fullScreen);
+bool InitializeWindow(HINSTANCE hInstance,
+	int ShowWnd,
+	bool fullscreen);
+
 // main application loop
-void MainLoop();
+void mainloop();
+
 // callback function for windows messages
-LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND hWnd,
+	UINT msg,
+	WPARAM wParam,
+	LPARAM lParam);
 
-
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
 // direct3d stuff
 const int frameBufferCount = 3; // number of buffers we want, 2 for double buffering, 3 for tripple buffering
 
@@ -68,10 +75,8 @@ UINT64 fenceValue[frameBufferCount]; // this value is incremented each frame. ea
 int frameIndex; // current rtv we are on
 
 int rtvDescriptorSize; // size of the rtv descriptor on the device (all front and back buffers will be the same size)
+					   // function declarations
 
-					   
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------
-// function declarations
 bool InitD3D(); // initializes direct3d 12
 
 void Update(); // update the game logic
@@ -83,3 +88,21 @@ void Render(); // execute the command list
 void Cleanup(); // release com ojects and clean up memory
 
 void WaitForPreviousFrame(); // wait until gpu is finished with command list
+
+ID3D12PipelineState* pipelineStateObject; // pso containing a pipeline state
+
+ID3D12RootSignature* rootSignature; // root signature defines data shaders will access
+
+D3D12_VIEWPORT viewport; // area that output from rasterizer will be stretched to.
+
+D3D12_RECT scissorRect; // the area to draw in. pixels outside that area will not be drawn onto
+
+ID3D12Resource* vertexBuffer; // a default buffer in GPU memory that we will load vertex data for our triangle into
+
+D3D12_VERTEX_BUFFER_VIEW vertexBufferView; // a structure containing a pointer to the vertex data in gpu memory
+										   // the total size of the buffer, and the size of each element (vertex)
+
+
+ID3D12Resource* indexBuffer; // a default buffer in GPU memory that we will load index data for our triangle into
+
+D3D12_INDEX_BUFFER_VIEW indexBufferView; // a structure holding information about the index buffer
