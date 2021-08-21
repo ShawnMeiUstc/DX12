@@ -504,10 +504,12 @@ bool InitD3D()
 	// default heap is memory on the GPU. Only the GPU has access to this memory
 	// To get data into this heap, we will have to upload the data using
 	// an upload heap
+	CD3DX12_HEAP_PROPERTIES vheapDefault(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC vBufDefaut = CD3DX12_RESOURCE_DESC::Buffer(vBufferSize);
 	device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), // a default heap
+		&vheapDefault, // a default heap
 		D3D12_HEAP_FLAG_NONE, // no flags
-		&CD3DX12_RESOURCE_DESC::Buffer(vBufferSize), // resource description for a buffer
+		&vBufDefaut, // resource description for a buffer
 		D3D12_RESOURCE_STATE_COPY_DEST, // we will start this heap in the copy destination state since we will copy data
 										// from the upload heap to this heap
 		nullptr, // optimized clear value must be null for this type of resource. used for render targets and depth/stencil buffers
@@ -520,10 +522,12 @@ bool InitD3D()
 	// upload heaps are used to upload data to the GPU. CPU can write to it, GPU can read from it
 	// We will upload the vertex buffer using this heap to the default heap
 	ID3D12Resource* vBufferUploadHeap;
+	CD3DX12_RESOURCE_DESC vBufUpload = CD3DX12_RESOURCE_DESC::Buffer(vBufferSize);
+	CD3DX12_HEAP_PROPERTIES vheapUpload(D3D12_HEAP_TYPE_UPLOAD);
 	device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // upload heap
+		&vheapUpload, // upload heap
 		D3D12_HEAP_FLAG_NONE, // no flags
-		&CD3DX12_RESOURCE_DESC::Buffer(vBufferSize), // resource description for a buffer
+		&vBufUpload, // resource description for a buffer
 		D3D12_RESOURCE_STATE_GENERIC_READ, // GPU will read from this buffer and copy its contents to the default heap
 		nullptr,
 		IID_PPV_ARGS(&vBufferUploadHeap));
@@ -540,7 +544,8 @@ bool InitD3D()
 	UpdateSubresources(commandList, vertexBuffer, vBufferUploadHeap, 0, 0, 1, &vertexData);
 
 	// transition the vertex buffer data from copy destination state to vertex buffer state
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	CD3DX12_RESOURCE_BARRIER vBarConstToCopy = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+	commandList->ResourceBarrier(1, &vBarConstToCopy);
 #pragma endregion vResourceHeap
 
 	// Create index buffer
@@ -555,10 +560,12 @@ bool InitD3D()
 	// Create index resource heaps
 #pragma region iResourceHeap
 	// create default heap to hold index buffer
+	CD3DX12_HEAP_PROPERTIES iheapDefault(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC iBufDefaut = CD3DX12_RESOURCE_DESC::Buffer(iBufferSize);
 	device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), // a default heap
+		&iheapDefault, // a default heap
 		D3D12_HEAP_FLAG_NONE, // no flags
-		&CD3DX12_RESOURCE_DESC::Buffer(iBufferSize), // resource description for a buffer
+		&iBufDefaut, // resource description for a buffer
 		D3D12_RESOURCE_STATE_COPY_DEST, // start in the copy destination state
 		nullptr, // optimized clear value must be null for this type of resource
 		IID_PPV_ARGS(&indexBuffer));
@@ -568,10 +575,13 @@ bool InitD3D()
 
 	// create upload heap to upload index buffer
 	ID3D12Resource* iBufferUploadHeap;
+	CD3DX12_HEAP_PROPERTIES iHeapUpload(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC iBufUpload = CD3DX12_RESOURCE_DESC::Buffer(iBufferSize);
+	
 	device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // upload heap
+		&iHeapUpload, // upload heap
 		D3D12_HEAP_FLAG_NONE, // no flags
-		&CD3DX12_RESOURCE_DESC::Buffer(vBufferSize), // resource description for a buffer
+		&iBufUpload, // resource description for a buffer
 		D3D12_RESOURCE_STATE_GENERIC_READ, // GPU will read from this buffer and copy its contents to the default heap
 		nullptr,
 		IID_PPV_ARGS(&iBufferUploadHeap));
@@ -588,7 +598,8 @@ bool InitD3D()
 	UpdateSubresources(commandList, indexBuffer, iBufferUploadHeap, 0, 0, 1, &indexData);
 
 	// transition the index buffer data from copy destination state to vertex buffer state
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	CD3DX12_RESOURCE_BARRIER iBarConstToCopy = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+	commandList->ResourceBarrier(1, &iBarConstToCopy);
 #pragma endregion iResourceHeap
 
 #pragma region ExcuteCQAndSetFence
@@ -684,7 +695,8 @@ void UpdatePipeline()
 	// here we start recording commands into the commandList (which all the commands will be stored in the commandAllocator)
 
 	// transition the "frameIndex" render target from the present state to the render target state so the command list draws to it starting from here
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	CD3DX12_RESOURCE_BARRIER rBarRtToPresent = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	commandList->ResourceBarrier(1, &rBarRtToPresent);
 
 	// here we again get the handle to our current render target view so we can set it as the render target in the output merger stage of the pipeline
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
@@ -707,7 +719,9 @@ void UpdatePipeline()
 	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 	// transition the "frameIndex" render target from the render target state to the present state. If the debug layer is enabled, you will receive a
 	// warning if present is called on the render target when it's not in the present state
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	CD3DX12_RESOURCE_BARRIER rBarPresentToRt = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
+	commandList->ResourceBarrier(1, &rBarPresentToRt);
 
 	hr = commandList->Close();
 	if (FAILED(hr))
